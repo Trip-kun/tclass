@@ -14,11 +14,11 @@ function tclass:new(args)
     return o
 end
 function tclass:getSuperclass()
-    return getmetatable(self)
+    return ((self==tclass) and tclass) or getmetatable(self)
 end
 function tclass:extend()
     local o = self:new()
-    o.__index=o
+    o.__index=setmetatable({getSuperclass=tclass.getSuperclass, is=tclass.is}, {__index=function (_, k) return rawget(o, k) end})
     setmetatable(o, self)
     return o
 end
@@ -77,9 +77,10 @@ function tclass:is(class)
     until found==true or rawequal(tclass, curclass)
     return found or rawequal(tclass, class)
 end
-mt.__tostring=function() return "Class" end
+mt.__tostring=function() return "base class" end
 mt.__call=tclass.extend
 mt.__index=mt
 tclass.__index=tclass
 tclass.__call=tclass.new
 setmetatable(tclass, mt)
+return tclass

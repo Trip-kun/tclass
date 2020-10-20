@@ -5,26 +5,6 @@ local assert = assert
 local rawequal=rawequal
 local type=type
 local mt = {}
-function tclass:new(args)
-    local o = {}
-    setmetatable(o, self)
-    if o.init then
-        assert(type(o.init)=="function", "Class:init() must be a function (or nil)")
-        o:init(args) end
-    return o
-end
-function tclass:getSuperclass()
-    return ((self==tclass) and tclass) or getmetatable(self)
-end
-function tclass:extend()
-    local o = self:new()
-    o.__index=setmetatable({getSuperclass=tclass.getSuperclass, is=tclass.is}, {__index=function (_, k) return rawget(o, k) end})
-    setmetatable(o, self)
-    return o
-end
-local notallowed={}
-notallowed.__call=true
-notallowed.__metatable=true
 local function get(func, t, k)
     if type(func)=="table" then
         return func[k]
@@ -34,6 +14,30 @@ local function get(func, t, k)
         error("get(): Invalid __index type")
     end
 end
+instancebannedfunctions={}
+function tclass:new(args)
+    local o = {}
+    setmetatable(o, setmetatable({__metatable=self,__index=setmetatable({}, {__index=function (t, k) local got=get(self, t, k) for _, v in pairs(instancebannedfunctions) do if got==v then return nil end end return got end})}, {__index=self}))
+    if o.init then
+        assert(type(o.init)=="function", "Class:init() must be a function (or nil)")
+        o:init(args) end
+    return o
+end
+function tclass:getSuperclass()
+    return ((self==tclass) and tclass) or getmetatable(self)
+end
+function tclass:extend()
+        local o = {}
+        setmetatable(o, self)
+        if o.init then
+            assert(type(o.init)=="function", "Class:init() must be a function (or nil)") end
+    o.__call=tclass.new
+    o.__index=setmetatable({ getSuperclass=tclass.getSuperclass, is=tclass.is}, {__index=function (_, k) return o[k] end})
+    return o
+end
+local notallowed={}
+notallowed.__call=true
+notallowed.__metatable=true
 function tclass:include(mixin)
     for k, v in pairs(mixin) do
         if self[k] then
@@ -83,4 +87,7 @@ mt.__index=mt
 tclass.__index=tclass
 tclass.__call=tclass.new
 setmetatable(tclass, mt)
+table.insert(instancebannedfunctions, tclass.new)
+table.insert(instancebannedfunctions, tclass.extend)
+table.insert(instancebannedfunctions, tclass.include)
 return tclass

@@ -14,7 +14,7 @@ local function get(func, t, k)
         error("get(): Invalid __index type")
     end
 end
-instancebannedfunctions={}
+local instancebannedfunctions={}
 function tclass:new(args)
     local o = {}
     setmetatable(o, setmetatable({__metatable=self,__index=setmetatable({}, {__index=function (t, k) local got=get(self, t, k) for _, v in pairs(instancebannedfunctions) do if got==v then return nil end end return got end})}, {__index=self}))
